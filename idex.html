@@ -1,67 +1,49 @@
-define(['jquery'], function($) {
-    return function() {
-        var self = this;
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Filtro de Leads por Tag</title>
+    <style>
+        body { font-family: sans-serif; margin: 15px; background-color: #f7f7f7; }
+        h4 { margin-top: 0; }
+        select { width: 100%; padding: 8px; border-radius: 3px; border: 1px solid #ccc; }
+        #area-resultados ul { list-style-type: none; padding: 0; margin-top: 15px; }
+        #area-resultados li { background-color: #fff; padding: 10px; border-bottom: 1px solid #eee; }
+        #area-resultados a { text-decoration: none; color: #0077cc; }
+    </style>
+</head>
+<body>
 
-        this.callbacks = {
-            render: function() {
-                var widget_html = `
-                    <div style="padding: 15px;">
-                        <h4 style="margin-top:0; margin-bottom: 10px;">Filtro por Tags</h4>
-                        <select id="meu-seletor-de-tags" class="control--select--input" style="width:100%;"></select>
-                        <div id="meus-leads-filtrados" style="margin-top: 15px;"></div>
-                    </div>
-                `;
-                self.render_template({
-                    html: widget_html,
-                });
-                self.buscarTodasAsTags();
-                return true;
-            },
-            bind_actions: function() {
-             
-                $(document).on('change', '#meu-seletor-de-tags', function() {
-                    var tag_selecionada = $(this).val();
-                    if (tag_selecionada) {
-                        self.buscarLeadsComTag(tag_selecionada);
-                    } else {
-                        $('#meus-leads-filtrados').html(''); 
-                    }
-                });
-                return true;
-            }
-        };
+    <h4>Filtro de Leads por Tag</h4>
+    <select id="seletor-tags"><option value="">Carregando tags...</option></select>
+    <div id="area-resultados"></div>
 
-       
-        this.buscarTodasAsTags = function() {
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
             $.get('/api/v4/leads/tags', function(data) {
-                var seletor = $('#meu-seletor-de-tags');
-                seletor.append('<option value="">Escolha uma tag...</option>');
-                data._embedded.tags.forEach(function(tag) {
-                    seletor.append('<option value="' + tag.name + '">' + tag.name + '</option>');
-                });
-            });
-        };
-
-  
-        this.buscarLeadsComTag = function(nomeDaTag) {
-            var areaDeResultados = $('#meus-leads-filtrados');
-            areaDeResultados.html('<p>Buscando leads...</p>'); // Mostra uma mensagem enquanto carrega
-
-            $.get('/api/v4/leads?filter[tags]=' + nomeDaTag, function(data) {
-                areaDeResultados.html(''); 
-                if (data && data._embedded) {
-                    var lista = '<ul>';
-                    data._embedded.leads.forEach(function(lead) {
-                        lista += '<li style="margin-bottom: 5px;"><a href="/leads/detail/' + lead.id + '" target="_blank">' + lead.name + '</a></li>';
-                    });
-                    lista += '</ul>';
-                    areaDeResultados.append(lista);
-                } else {
-                    areaDeResultados.html('<p>Nenhum lead encontrado.</p>');
+                var seletor = $('#seletor-tags');
+                seletor.empty().append('<option value="">Escolha uma tag...</option>');
+                if (data && data._embedded && data._embedded.tags) {
+                    data._embedded.tags.forEach(function(tag) { seletor.append('<option value="' + tag.name + '">' + tag.name + '</option>'); });
                 }
-            });
-        };
+            }).fail(function() { $('#seletor-tags').empty().append('<option value="">Erro ao carregar tags</option>'); });
 
-        return this;
-    };
-});
+            $('#seletor-tags').on('change', function() {
+                var tagName = $(this).val();
+                var areaResultados = $('#area-resultados');
+                if (!tagName) { areaResultados.empty(); return; }
+                areaResultados.html('<p>Buscando...</p>');
+                $.get('/api/v4/leads?filter[tags]=' + encodeURIComponent(tagName), function(data) {
+                    areaResultados.empty();
+                    if (data && data._embedded && data._embedded.leads.length > 0) {
+                        var lista = '<ul>';
+                        data._embedded.leads.forEach(function(lead) { lista += '<li><a href="/leads/detail/' + lead.id + '" target="_blank">' + lead.name + '</a></li>'; });
+                        lista += '</ul>';
+                        areaResultados.append(lista);
+                    } else { areaResultados.html('<p>Nenhum lead encontrado.</p>'); }
+                }).fail(function() { areaResultados.html('<p>Erro ao buscar leads.</p>'); });
+            });
+        });
+    </script>
+</body>
+</html>
