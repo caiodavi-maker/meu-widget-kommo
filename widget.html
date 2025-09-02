@@ -1,0 +1,67 @@
+define(['jquery'], function($) {
+    return function() {
+        var self = this;
+
+        this.callbacks = {
+            render: function() {
+                var widget_html = `
+                    <div style="padding: 15px;">
+                        <h4 style="margin-top:0; margin-bottom: 10px;">Filtro por Tags</h4>
+                        <select id="meu-seletor-de-tags" class="control--select--input" style="width:100%;"></select>
+                        <div id="meus-leads-filtrados" style="margin-top: 15px;"></div>
+                    </div>
+                `;
+                self.render_template({
+                    html: widget_html,
+                });
+                self.buscarTodasAsTags();
+                return true;
+            },
+            bind_actions: function() {
+             
+                $(document).on('change', '#meu-seletor-de-tags', function() {
+                    var tag_selecionada = $(this).val();
+                    if (tag_selecionada) {
+                        self.buscarLeadsComTag(tag_selecionada);
+                    } else {
+                        $('#meus-leads-filtrados').html(''); 
+                    }
+                });
+                return true;
+            }
+        };
+
+       
+        this.buscarTodasAsTags = function() {
+            $.get('/api/v4/leads/tags', function(data) {
+                var seletor = $('#meu-seletor-de-tags');
+                seletor.append('<option value="">Escolha uma tag...</option>');
+                data._embedded.tags.forEach(function(tag) {
+                    seletor.append('<option value="' + tag.name + '">' + tag.name + '</option>');
+                });
+            });
+        };
+
+  
+        this.buscarLeadsComTag = function(nomeDaTag) {
+            var areaDeResultados = $('#meus-leads-filtrados');
+            areaDeResultados.html('<p>Buscando leads...</p>'); // Mostra uma mensagem enquanto carrega
+
+            $.get('/api/v4/leads?filter[tags]=' + nomeDaTag, function(data) {
+                areaDeResultados.html(''); 
+                if (data && data._embedded) {
+                    var lista = '<ul>';
+                    data._embedded.leads.forEach(function(lead) {
+                        lista += '<li style="margin-bottom: 5px;"><a href="/leads/detail/' + lead.id + '" target="_blank">' + lead.name + '</a></li>';
+                    });
+                    lista += '</ul>';
+                    areaDeResultados.append(lista);
+                } else {
+                    areaDeResultados.html('<p>Nenhum lead encontrado.</p>');
+                }
+            });
+        };
+
+        return this;
+    };
+});
